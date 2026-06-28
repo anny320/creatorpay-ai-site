@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CreatorPay AI — Find the revenue your checkout is leaking</title>
+<meta name="description" content="A browser copilot that scans your checkout and tells you exactly where you're losing money — and what to fix first.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B0F14;
+    --ink-2:#11161D;
+    --paper:#ECEEE9;
+    --paper-dim:#9AA3AA;
+    --loss:#FF5A4E;
+    --gain:#00D9A3;
+    --slate:#7C8896;
+    --signal:#5B7FFF;
+    --line: rgba(236,238,233,0.12);
+    --radius: 2px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'Inter', sans-serif;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001s !important; animation-iteration-count:1 !important; transition-duration:0.001s !important;}
+  }
+
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 32px;}
+
+  ::selection{background:var(--signal); color:var(--ink);}
+  :focus-visible{outline:2px solid var(--signal); outline-offset:3px;}
+
+  /* ---------- NAV ---------- */
+  nav{
+    position:sticky; top:0; z-index:50;
+    background:rgba(11,15,20,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{
+    display:flex; align-items:center; justify-content:space-between;
+    height:68px;
+  }
+  .brand{
+    font-family:'Fraunces', serif; font-weight:600; font-size:19px;
+    letter-spacing:-0.01em;
+    display:flex; align-items:center; gap:8px;
+  }
+  .brand .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--gain);
+    box-shadow:0 0 0 3px rgba(0,217,163,0.18);
+  }
+  .nav-links{display:flex; gap:36px; align-items:center;}
+  .nav-links a{
+    font-size:14px; color:var(--slate); font-weight:500;
+    transition:color .2s;
+  }
+  .nav-links a:hover{color:var(--paper);}
+  .nav-cta{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12.5px; font-weight:500;
+    background:var(--paper); color:var(--ink);
+    padding:10px 18px; border-radius:var(--radius);
+    transition:transform .15s, background .15s;
+  }
+  .nav-cta:hover{background:var(--gain); transform:translateY(-1px);}
+  @media(max-width:760px){ .nav-links a:not(.nav-cta){display:none;} }
+
+  /* ---------- HERO ---------- */
+  .hero{
+    padding:88px 0 64px;
+    position:relative;
+  }
+  .hero .wrap{
+    display:grid;
+    grid-template-columns:1.05fr 0.95fr;
+    gap:64px;
+    align-items:center;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono', monospace;
+    font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--gain);
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:22px;
+  }
+  .eyebrow::before{
+    content:''; width:18px; height:1px; background:var(--gain); display:block;
+  }
+  h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:clamp(38px, 5vw, 58px);
+    line-height:1.04;
+    letter-spacing:-0.015em;
+    max-width:560px;
+  }
+  h1 em{
+    font-style:italic; font-weight:500; color:var(--loss);
+  }
+  .hero p.lede{
+    margin-top:22px;
+    font-size:17.5px; line-height:1.6;
+    color:#C7CCC8;
+    max-width:480px;
+  }
+  .hero-ctas{display:flex; gap:14px; margin-top:34px; flex-wrap:wrap;}
+  .btn-primary{
+    background:var(--paper); color:var(--ink);
+    font-weight:600; font-size:14.5px;
+    padding:14px 24px; border-radius:var(--radius);
+    transition:transform .15s, box-shadow .15s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn-primary:hover{transform:translateY(-2px); box-shadow:0 8px 24px rgba(236,238,233,0.15);}
+  .btn-secondary{
+    border:1px solid var(--line); color:var(--paper);
+    font-weight:500; font-size:14.5px;
+    padding:14px 22px; border-radius:var(--radius);
+    transition:border-color .15s, background .15s;
+  }
+  .btn-secondary:hover{border-color:var(--paper); background:rgba(255,255,255,0.03);}
+  .hero-meta{
+    margin-top:28px; font-size:13px; color:var(--slate);
+    display:flex; gap:18px; flex-wrap:wrap;
+  }
+  .hero-meta span{display:flex; align-items:center; gap:7px;}
+  .hero-meta svg{width:13px; height:13px; flex-shrink:0;}
+
+  /* ---------- RECEIPT (signature element) ---------- */
+  .receipt-stage{
+    display:flex; justify-content:center; position:relative;
+  }
+  .receipt-stage::before{
+    content:'';
+    position:absolute; top:-40px; left:50%; width:560px; height:560px;
+    transform:translateX(-50%);
+    background:radial-gradient(circle, rgba(91,127,255,0.10), transparent 65%);
+    z-index:0; pointer-events:none;
+  }
+  .receipt{
+    position:relative; z-index:1;
+    width:320px;
+    background:var(--paper);
+    color:#1B1F22;
+    padding:26px 24px 30px;
+    font-family:'JetBrains Mono', monospace;
+    box-shadow:0 30px 70px -20px rgba(0,0,0,0.55), 0 0 0 1px rgba(0,0,0,0.04);
+    clip-path: polygon(
+      0% 0%, 100% 0%, 100% 97%,
+      96% 100%, 92% 97%, 88% 100%, 84% 97%, 80% 100%, 76% 97%, 72% 100%,
+      68% 97%, 64% 100%, 60% 97%, 56% 100%, 52% 97%, 48% 100%, 44% 97%,
+      40% 100%, 36% 97%, 32% 100%, 28% 97%, 24% 100%, 20% 97%, 16% 100%,
+      12% 97%, 8% 100%, 4% 97%, 0% 100%
+    );
+  }
+  .receipt-head{
+    text-align:center; border-bottom:1px dashed rgba(0,0,0,0.25);
+    padding-bottom:14px; margin-bottom:14px;
+  }
+  .receipt-head .name{font-weight:700; font-size:13px; letter-spacing:0.08em;}
+  .receipt-head .sub{font-size:10.5px; color:#666; margin-top:4px;}
+  .receipt-line{
+    display:flex; justify-content:space-between; gap:10px;
+    font-size:11.5px; line-height:1.5;
+    padding:4px 0;
+    opacity:0; transform:translateY(4px);
+    animation: printIn .4s forwards;
+  }
+  .receipt-line .label{color:#2B2F33;}
+  .receipt-line .amt{color:var(--loss); font-weight:700; white-space:nowrap;}
+  .receipt-line.l1{animation-delay:.3s}
+  .receipt-line.l2{animation-delay:.75s}
+  .receipt-line.l3{animation-delay:1.2s}
+  .receipt-line.l4{animation-delay:1.65s}
+  @keyframes printIn{ to{opacity:1; transform:translateY(0);} }
+
+  .receipt-total{
+    border-top:1px dashed rgba(0,0,0,0.25);
+    margin-top:14px; padding-top:14px;
+    display:flex; justify-content:space-between; align-items:baseline;
+    opacity:0; animation:printIn .4s forwards; animation-delay:2.1s;
+  }
+  .receipt-total .t-label{font-size:11px; font-weight:600; letter-spacing:0.04em;}
+  .receipt-total .t-amt{font-size:20px; font-weight:700; color:var(--loss);}
+  .receipt-fix{
+    margin-top:16px; padding-top:14px; border-top:1px dashed rgba(0,0,0,0.25);
+    font-size:10.5px; color:#1B1F22;
+    opacity:0; animation:printIn .4s forwards; animation-delay:2.5s;
+  }
+  .receipt-fix .fix-label{font-weight:700; color:var(--gain); letter-spacing:0.06em;}
+  .receipt-fix .fix-amt{font-weight:700; color:#0E8A66;}
+
+  /* ---------- TRUST STRIP ---------- */
+  .trust{
+    border-top:1px solid var(--line); border-bottom:1px solid var(--line);
+    padding:20px 0;
+  }
+  .trust .wrap{
+    display:flex; gap:40px; align-items:center; justify-content:center;
+    flex-wrap:wrap;
+    font-family:'JetBrains Mono', monospace; font-size:12.5px;
+    color:var(--slate); letter-spacing:0.03em;
+  }
+  .trust .wrap span{opacity:0.85;}
+
+  /* ---------- SECTION SHARED ---------- */
+  section{padding:96px 0;}
+  .sec-head{max-width:620px; margin-bottom:56px;}
+  .sec-tag{
+    font-family:'JetBrains Mono', monospace; font-size:12px;
+    color:var(--signal); text-transform:uppercase; letter-spacing:0.1em;
+    margin-bottom:14px;
+  }
+  h2{
+    font-family:'Fraunces', serif; font-weight:600;
+    font-size:clamp(28px, 3.4vw, 38px); letter-spacing:-0.01em; line-height:1.12;
+  }
+  .sec-head p{color:#A8AEAA; font-size:16px; margin-top:14px; line-height:1.6;}
+
+  /* ---------- HOW IT WORKS (real sequence -> numbered) ---------- */
+  .steps{
+    display:grid; grid-template-columns:repeat(5,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line);
+  }
+  .step{
+    background:var(--ink); padding:28px 22px; position:relative;
+    min-height:200px; display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .step .num{
+    font-family:'JetBrains Mono', monospace; color:var(--signal);
+    font-size:12px; letter-spacing:0.05em;
+  }
+  .step h3{
+    font-family:'Inter', sans-serif; font-weight:600; font-size:15px;
+    margin-top:14px; line-height:1.4;
+  }
+  .step p{font-size:13px; color:var(--slate); margin-top:8px; line-height:1.5;}
+  @media(max-width:920px){ .steps{grid-template-columns:1fr 1fr;} }
+  @media(max-width:560px){ .steps{grid-template-columns:1fr;} }
+
+  /* ---------- FEATURES ---------- */
+  .feat-grid{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line);
+  }
+  .feat{
+    background:var(--ink-2); padding:32px 28px;
+    transition:background .2s;
+  }
+  .feat:hover{background:#141B23;}
+  .feat .tag{
+    font-family:'JetBrains Mono', monospace; font-size:11px;
+    color:var(--gain); letter-spacing:0.06em; text-transform:uppercase;
+  }
+  .feat h3{
+    font-family:'Inter', sans-serif; font-size:17px; font-weight:600;
+    margin-top:12px;
+  }
+  .feat p{font-size:14px; color:#9CA3A9; margin-top:10px; line-height:1.6;}
+  @media(max-width:920px){ .feat-grid{grid-template-columns:1fr 1fr;} }
+  @media(max-width:600px){ .feat-grid{grid-template-columns:1fr;} }
+
+  /* ---------- WIDGET PREVIEW ---------- */
+  .widget-section .wrap{
+    display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center;
+  }
+  @media(max-width:880px){ .widget-section .wrap{grid-template-columns:1fr;} }
+  .widget-mock{
+    background:var(--ink-2); border:1px solid var(--line); border-radius:10px;
+    padding:20px; width:100%; max-width:380px;
+    font-family:'JetBrains Mono', monospace;
+    box-shadow:0 24px 60px -20px rgba(0,0,0,0.5);
+  }
+  .widget-mock .wm-head{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:12px; color:var(--slate); margin-bottom:16px;
+  }
+  .widget-mock .wm-head .live{
+    display:flex; align-items:center; gap:6px; color:var(--gain);
+  }
+  .widget-mock .wm-head .live .dot{width:6px; height:6px; border-radius:50%; background:var(--gain);}
+  .score-row{display:flex; align-items:baseline; gap:10px; margin-bottom:18px;}
+  .score-row .score{font-size:38px; font-weight:700; color:var(--paper); font-family:'Fraunces',serif;}
+  .score-row .score-label{font-size:12px; color:var(--slate); line-height:1.4;}
+  .wm-alert{
+    background:rgba(255,90,78,0.08); border:1px solid rgba(255,90,78,0.25);
+    border-radius:6px; padding:12px 14px; margin-bottom:16px;
+  }
+  .wm-alert .al-label{font-size:10.5px; color:var(--loss); letter-spacing:0.04em;}
+  .wm-alert .al-amt{font-size:22px; font-weight:700; color:var(--loss); margin-top:4px;}
+  .wm-list{font-size:12px; color:#C7CCC8; line-height:1.9;}
+  .wm-list .ok{color:var(--gain); margin-right:8px;}
+  .wm-cta{
+    margin-top:18px; width:100%; background:var(--paper); color:var(--ink);
+    border:none; padding:11px; border-radius:6px; font-family:'JetBrains Mono',monospace;
+    font-size:12px; font-weight:700; cursor:pointer;
+  }
+
+  /* ---------- PRICING ---------- */
+  .pricing-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line);
+  }
+  .plan{
+    background:var(--ink-2); padding:36px 30px; display:flex; flex-direction:column;
+  }
+  .plan.featured{background:#10151B; position:relative;}
+  .plan.featured::before{
+    content:'MOST CHOSEN'; position:absolute; top:0; right:0;
+    font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:0.08em;
+    background:var(--gain); color:var(--ink); padding:5px 10px;
+  }
+  .plan .pname{font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--signal); letter-spacing:0.06em; text-transform:uppercase;}
+  .plan .pprice{
+    font-family:'Fraunces', serif; font-size:38px; font-weight:600; margin-top:14px;
+  }
+  .plan .pprice span{font-family:'Inter',sans-serif; font-size:14px; color:var(--slate); font-weight:400;}
+  .plan ul{list-style:none; margin-top:22px; flex-grow:1;}
+  .plan li{
+    font-size:13.5px; color:#B7BDB9; padding:8px 0; border-top:1px solid var(--line);
+    display:flex; gap:8px;
+  }
+  .plan li:first-child{border-top:none;}
+  .plan li::before{content:'—'; color:var(--slate); flex-shrink:0;}
+  .plan .pbtn{
+    margin-top:24px; text-align:center; padding:12px; border-radius:var(--radius);
+    font-size:13.5px; font-weight:600; border:1px solid var(--line);
+    transition:all .15s;
+  }
+  .plan .pbtn:hover{border-color:var(--paper); background:rgba(255,255,255,0.03);}
+  .plan.featured .pbtn{background:var(--gain); color:var(--ink); border-color:var(--gain);}
+  @media(max-width:880px){ .pricing-grid{grid-template-columns:1fr;} }
+
+  /* ---------- ROADMAP ---------- */
+  .roadmap{
+    display:flex; flex-direction:column; border-top:1px solid var(--line);
+  }
+  .rm-row{
+    display:grid; grid-template-columns:160px 1fr 1fr;
+    gap:24px; padding:22px 0; border-bottom:1px solid var(--line);
+    align-items:baseline;
+  }
+  .rm-row .phase{font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--signal);}
+  .rm-row .title{font-weight:600; font-size:15px;}
+  .rm-row .desc{font-size:13.5px; color:var(--slate); line-height:1.5;}
+  @media(max-width:760px){
+    .rm-row{grid-template-columns:1fr; gap:6px;}
+  }
+
+  /* ---------- FINAL CTA ---------- */
+  .cta-final{
+    text-align:center; padding:120px 0 100px;
+    border-top:1px solid var(--line);
+  }
+  .cta-final h2{max-width:600px; margin:0 auto;}
+  .cta-final .hero-ctas{justify-content:center;}
+
+  footer{
+    border-top:1px solid var(--line); padding:36px 0; font-size:13px; color:var(--slate);
+  }
+  footer .wrap{display:flex; justify-content:space-between; flex-wrap:wrap; gap:16px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>CreatorPay AI</div>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#roadmap">Roadmap</a>
+      <a class="nav-cta" href="#cta">Install free</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Browser copilot for creator payments</div>
+      <h1>Your checkout is <em>leaking money.</em> We print the receipt.</h1>
+      <p class="lede">CreatorPay AI sits on top of Shopify, Whop, Gumroad, Kajabi, Teachable, Patreon, and Stripe — and shows you exactly where revenue is slipping through, in dollars, not jargon.</p>
+      <div class="hero-ctas">
+        <a class="btn-primary" href="#cta">Install the extension →</a>
+        <a class="btn-secondary" href="#how">See how it works</a>
+      </div>
+      <div class="hero-meta">
+        <span>No payment processing</span>
+        <span>No credentials stored</span>
+        <span>Free scan, no card</span>
+      </div>
+    </div>
+
+    <div class="receipt-stage">
+      <div class="receipt">
+        <div class="receipt-head">
+          <div class="name">REVENUE LEAK REPORT</div>
+          <div class="sub">scanned · whop.com/checkout</div>
+        </div>
+        <div class="receipt-line l1"><span class="label">M-Pesa unsupported (KE)</span><span class="amt">–$420</span></div>
+        <div class="receipt-line l2"><span class="label">PayPal missing (EU)</span><span class="amt">–$310</span></div>
+        <div class="receipt-line l3"><span class="label">Failed retry logic</span><span class="amt">–$260</span></div>
+        <div class="receipt-line l4"><span class="label">Refund rate 11% (avg 5%)</span><span class="amt">–$430</span></div>
+        <div class="receipt-total">
+          <span class="t-label">TOTAL LOST / MONTH</span>
+          <span class="t-amt">$1,420</span>
+        </div>
+        <div class="receipt-fix">
+          <span class="fix-label">RECOVERABLE →</span> <span class="fix-amt">+21% with 4 fixes</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="trust">
+  <div class="wrap">
+    <span>SHOPIFY</span><span>WHOP</span><span>GUMROAD</span><span>KAJABI</span><span>TEACHABLE</span><span>PATREON</span><span>STRIPE</span>
+  </div>
+</div>
+
+<section id="how">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">The user journey</div>
+      <h2>From install to insight in under a minute.</h2>
+      <p>No setup calls, no integrations to configure first. The extension detects your platform and starts reading the page the moment you land on checkout.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <span class="num">01</span>
+        <div>
+          <h3>Install the extension</h3>
+          <p>One click from the Chrome Web Store. No payment account linking required.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">02</span>
+        <div>
+          <h3>Tell it about your business</h3>
+          <p>Creator type, country, platform, and rough monthly revenue. Takes 90 seconds.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">03</span>
+        <div>
+          <h3>Open your platform</h3>
+          <p>Shopify, Whop, Gumroad — it auto-detects and the widget appears.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">04</span>
+        <div>
+          <h3>Run a scan</h3>
+          <p>Readiness score, leak estimate, and ranked recommendations appear instantly.</p>
+        </div>
+      </div>
+      <div class="step">
+        <span class="num">05</span>
+        <div>
+          <h3>Open the full report</h3>
+          <p>A dashboard with benchmarks, charts, and a prioritized action list.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">What it actually does</div>
+      <h2>Six checks. One question: where's the money going?</h2>
+    </div>
+    <div class="feat-grid">
+      <div class="feat">
+        <div class="tag">Scanner</div>
+        <h3>Payment Readiness Score</h3>
+        <p>Checks for missing payment methods, currency support, mobile friction, and subscription handling — scored 0 to 100.</p>
+      </div>
+      <div class="feat">
+        <div class="tag">Detector</div>
+        <h3>Revenue Leak Detector</h3>
+        <p>Estimates dollars lost monthly to unsupported countries, failed subscriptions, and abandoned checkouts.</p>
+      </div>
+      <div class="feat">
+        <div class="tag">Advisor</div>
+        <h3>Global Payment Advisor</h3>
+        <p>Localized advice — M-Pesa for Kenya, Paystack for Nigeria, UPI for India — instead of one generic checklist.</p>
+      </div>
+      <div class="feat">
+        <div class="tag">Copilot</div>
+        <h3>AI Revenue Copilot</h3>
+        <p>Ask "why are conversions dropping?" and get a direct answer tied to your traffic mix and checkout config.</p>
+      </div>
+      <div class="feat">
+        <div class="tag">Risk</div>
+        <h3>Chargeback Risk Advisor</h3>
+        <p>Flags refund policy gaps and subscription structures likely to trigger disputes — before they happen.</p>
+      </div>
+      <div class="feat">
+        <div class="tag">Benchmarks</div>
+        <h3>Anonymous Benchmarking</h3>
+        <p>See your conversion and refund rate against creators in your category, as the opted-in network grows.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="widget-section">
+  <div class="wrap">
+    <div class="widget-mock">
+      <div class="wm-head">
+        <span>CreatorPay AI</span>
+        <span class="live"><span class="dot"></span>live on whop.com</span>
+      </div>
+      <div class="score-row">
+        <span class="score">82</span>
+        <span class="score-label">Revenue Health<br>out of 100</span>
+      </div>
+      <div class="wm-alert">
+        <div class="al-label">⚠ ESTIMATED LOST REVENUE</div>
+        <div class="al-amt">$1,420/mo</div>
+      </div>
+      <div class="wm-list">
+        <div><span class="ok">✓</span>Add PayPal</div>
+        <div><span class="ok">✓</span>Add Flutterwave</div>
+        <div><span class="ok">✓</span>Enable payment retries</div>
+        <div><span class="ok">✓</span>Offer local currency</div>
+      </div>
+      <button class="wm-cta">VIEW FULL REPORT →</button>
+    </div>
+    <div>
+      <div class="sec-tag">The widget</div>
+      <h2>It lives next to your checkout — not in another tab.</h2>
+      <p style="color:#A8AEAA; font-size:16px; margin-top:14px; line-height:1.6; max-width:460px;">A floating panel appears the moment you're on a supported platform. No context-switching, no exporting CSVs to a dashboard you'll forget to open. The score updates as you fix things.</p>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Pricing</div>
+      <h2>Start free. Upgrade when the leaks add up.</h2>
+    </div>
+    <div class="pricing-grid">
+      <div class="plan">
+        <div class="pname">Free</div>
+        <div class="pprice">$0</div>
+        <ul>
+          <li>One platform scan</li>
+          <li>Basic Payment Readiness Score</li>
+          <li>Top 3 recommendations</li>
+        </ul>
+        <a class="pbtn" href="#cta">Install free</a>
+      </div>
+      <div class="plan featured">
+        <div class="pname">Pro</div>
+        <div class="pprice">$29<span>/mo</span></div>
+        <ul>
+          <li>Unlimited scans</li>
+          <li>Historical tracking</li>
+          <li>AI Revenue Copilot</li>
+          <li>Category benchmarks</li>
+          <li>Exportable reports</li>
+        </ul>
+        <a class="pbtn" href="#cta">Start Pro trial</a>
+      </div>
+      <div class="plan">
+        <div class="pname">Agency</div>
+        <div class="pprice">$99<span>+/mo</span></div>
+        <ul>
+          <li>Multiple creator accounts</li>
+          <li>Portfolio dashboard</li>
+          <li>White-label reports</li>
+          <li>API access</li>
+        </ul>
+        <a class="pbtn" href="#cta">Talk to us</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roadmap">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="sec-tag">Where this goes</div>
+      <h2>Insights → recommendations → automation → infrastructure.</h2>
+      <p>The MVP needs no banking partnerships or payment licenses. Each phase earns the trust required for the next.</p>
+    </div>
+    <div class="roadmap">
+      <div class="rm-row">
+        <span class="phase">PHASE 1 · WK 1–4</span>
+        <span class="title">Intelligence</span>
+        <span class="desc">Extension, scanner, rules engine, GitHub Pages dashboard, CSV upload.</span>
+      </div>
+      <div class="rm-row">
+        <span class="phase">PHASE 2 · MO 2–3</span>
+        <span class="title">Connected insights</span>
+        <span class="desc">Optional Shopify, Stripe, PayPal, and Whop integrations for richer, account-level analysis.</span>
+      </div>
+      <div class="rm-row">
+        <span class="phase">PHASE 3 · MO 4–6</span>
+        <span class="title">Revenue automation</span>
+        <span class="desc">Recovery emails, localized checkout recommendations, subscription failure monitoring.</span>
+      </div>
+      <div class="rm-row">
+        <span class="phase">PHASE 4 · FUTURE</span>
+        <span class="title">Payment orchestration</span>
+        <span class="desc">Route payments to the best provider and recover failed transactions automatically.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="cta-final" id="cta">
+  <div class="wrap">
+    <div class="sec-tag" style="justify-content:center; display:flex;">Free, no card required</div>
+    <h2>Find out what your checkout is costing you.</h2>
+    <div class="hero-ctas">
+      <a class="btn-primary" href="#">Install the Chrome extension →</a>
+      <a class="btn-secondary" href="#">Read the docs</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div>CreatorPay AI — an intelligence layer, not another payment gateway.</div>
+    <div>© 2026 CreatorPay AI</div>
+  </div>
+</footer>
+
+</body>
+</html>
