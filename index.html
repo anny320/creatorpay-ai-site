@@ -249,6 +249,9 @@
   .step p{font-size:13px; color:var(--slate); margin-top:8px; line-height:1.5;}
   @media(max-width:920px){ .steps{grid-template-columns:1fr 1fr;} }
   @media(max-width:560px){ .steps{grid-template-columns:1fr;} }
+  .roadmap-steps{grid-template-columns:repeat(4,1fr);}
+  @media(max-width:920px){ .roadmap-steps{grid-template-columns:1fr 1fr;} }
+  @media(max-width:560px){ .roadmap-steps{grid-template-columns:1fr;} }
 
   /* ---------- FEATURES ---------- */
   .feat-grid{
@@ -602,28 +605,36 @@
     <div class="sec-head">
       <div class="sec-tag">Where this goes</div>
       <h2>Insights → recommendations → automation → infrastructure.</h2>
-      <p>The MVP needs no banking partnerships or payment licenses. Each phase earns the trust required for the next.</p>
+      <p>No banking partnerships or payment licenses needed for the MVP. Each phase earns the trust required for the next.</p>
     </div>
-    <div class="roadmap">
-      <div class="rm-row">
-        <span class="phase">PHASE 1 · WK 1–4</span>
-        <span class="title">Intelligence</span>
-        <span class="desc">Extension, scanner, rules engine, GitHub Pages dashboard, CSV upload.</span>
+    <div class="steps roadmap-steps">
+      <div class="step">
+        <span class="num">PHASE 1 · NOW</span>
+        <div>
+          <h3>Intelligence</h3>
+          <p>Extension, scanner, rules engine, GitHub Pages dashboard, CSV upload.</p>
+        </div>
       </div>
-      <div class="rm-row">
-        <span class="phase">PHASE 2 · MO 2–3</span>
-        <span class="title">Connected insights</span>
-        <span class="desc">Optional Shopify, Stripe, PayPal, and Whop integrations for richer, account-level analysis.</span>
+      <div class="step">
+        <span class="num">PHASE 2 · NEXT</span>
+        <div>
+          <h3>Connected insights</h3>
+          <p>Optional Shopify, Stripe, PayPal, and Whop integrations for account-level analysis.</p>
+        </div>
       </div>
-      <div class="rm-row">
-        <span class="phase">PHASE 3 · MO 4–6</span>
-        <span class="title">Revenue automation</span>
-        <span class="desc">Recovery emails, localized checkout recommendations, subscription failure monitoring.</span>
+      <div class="step">
+        <span class="num">PHASE 3 · LATER</span>
+        <div>
+          <h3>Revenue automation</h3>
+          <p>Recovery emails, localized checkout recommendations, subscription monitoring.</p>
+        </div>
       </div>
-      <div class="rm-row">
-        <span class="phase">PHASE 4 · FUTURE</span>
-        <span class="title">Payment orchestration</span>
-        <span class="desc">Route payments to the best provider and recover failed transactions automatically.</span>
+      <div class="step">
+        <span class="num">PHASE 4 · FUTURE</span>
+        <div>
+          <h3>Payment orchestration</h3>
+          <p>Route payments to the best provider and recover failed transactions automatically.</p>
+        </div>
       </div>
     </div>
   </div>
